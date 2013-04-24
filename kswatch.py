@@ -108,9 +108,9 @@ url += '/pledge/new' # we want the pledge-editing page
 pledge = float(sys.argv[2])
 
 status = None
+ks = KickstarterHTMLParser()
 
 while True:
-    ks = KickstarterHTMLParser()
     rewards = ks.process(url)
 
     s = rewards[pledge]
