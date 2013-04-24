@@ -119,7 +119,7 @@ while True:
     if status != s[0]:
         print 'Status changed!'
         webbrowser.open_new_tab(url)
-        sleep(10)   # Give the web browser time to open
+        time.sleep(10)   # Give the web browser time to open
         break
 
     print s[1]
