@@ -25,94 +25,103 @@
 
 import sys
 import os
-import re
-import tempfile
-import subprocess
 import time
-import datetime
-import smtplib
-import getpass
 import urllib2
-import lxml.html
+import HTMLParser
 import webbrowser
-from optparse import OptionParser, OptionGroup
 
-# Command line options are global
-options = None
-args = None
+statuses = ['reward', 'reward shipping', 'disabled reward',
+           'disabled reward shipping', 'last reward shipping']
 
-# Get the command-line parameters
-def command_line():
-    global options, args
+# Parse the pledge HTML page
+#
+# It looks like this:
+#
+# <li class="reward shipping" ...>
+# <input alt="$75.00" ... title="$75.00" />
+# ...
+# </li>
+#
+# So we need to scan the HTML looking for <li> tags with the proper class,
+# (the class is the status of that pledge level), and then remember that
+# status as we parse inside the <li> block.  The <input> tag contains a title
+# with the pledge amount.  We return a dictionary that includes the pledge
+# level and its status.
+#
+# The 'rewards' dictionary uses the reward value as a key, and
+# (status, remaining) as the value.
+class KickstarterHTMLParser(HTMLParser.HTMLParser):
+    def __init__(self):
+        HTMLParser.HTMLParser.__init__(self)
+        self.in_li_block = False    # True == we're inside an <li class='...'> block
+        self.in_p_block = False     # True == we're inside a <p class='remaining'> block
+        self.rewards = {}
+        self.remaining = None
 
-    parser = OptionParser(usage='usage: %prog <project-home-url> <pledge-amount>',
-        description='')
-
-    (options, args) = parser.parse_args()
-
-    if len(args) < 2:
-        parser.print_help()
-        sys.exit(1)
-
-def find_reward(tree, reward):
-    rewards = []
-
-    for e in tree.findall('.//li[@class="reward"]'):
-        rewards.append(e)
-    for e in tree.findall('.//li[@class="reward shipping"]'):
-        rewards.append(e)
-    for e in tree.findall('.//li[@class="disabled reward"]'):
-        rewards.append(e)
-    for e in tree.findall('.//li[@class="disabled reward shipping"]'):
-        rewards.append(e)
-
-    for r in rewards:
-        for e in r:
-            if e.tag == 'input':
-                if float(e.attrib['title'][1:].replace(',', '')) == reward:
-                    return r
-
-    print 'Pledge amount not found'
-    print 'Valid levels:',
-    for r in rewards:
-        for e in r:
-            if e.tag == 'input':
-                print e.attrib['title'][1:].rstrip('0').rstrip('.'),
-    print
-
-    return None
-
-def login():
-    global options, args
-    status = None
-
-    # Generate the URL
-    url = args[0].split('?', 1)[0]  # drop the stuff after the ?
-    url += '/pledge/new' # we want the pledge-editing page
-
-    while True:
+    def process(self, url) :
         f = urllib2.urlopen(url)
-        response = f.read()
+        html = unicode(f.read(), 'utf-8')
         f.close()
+        self.feed(html)   # feed() starts the HTMLParser parsing
+        return self.rewards
 
-        tree = lxml.html.fromstring(response)
+    def handle_starttag(self, tag, attributes):
+        global status
 
-        reward = find_reward(tree, float(args[1]))
-        if reward is None:
-            break
-        s = reward.attrib['class']
-        if not status:
-            status = s
-        if status != s:
-            print 'Status changed!'
-            webbrowser.open_new_tab(url)
-            sleep(10)   # Give the web browser time to open
-            break
+        attrs = dict(attributes)
 
-        for e in reward.findall('.//p[@class="remaining"]'):
-            print e.text
+        # It turns out that we only care about tags that have a 'class' attribute
+        if not 'class' in attrs:
+            return
 
-        time.sleep(60)
+        if self.in_li_block and tag == 'input':
+            # Convert the value into a float
+            self.value = float(attrs['title'][1:].replace(',', ''))
 
-command_line()
-login()
+        if self.in_li_block and tag == 'p' and attrs['class'] == 'remaining':
+            self.in_p_block = True
+            self.remaining = None
+
+        if tag == 'li' and attrs['class'] in statuses:
+            self.in_li_block = True
+            # Remember the status of this <li> block
+            self.status = attrs['class']
+
+    def handle_endtag(self, tag):
+        if tag == 'li':
+            if self.in_li_block:
+                self.rewards[self.value] = (self.status, self.remaining)
+                self.in_li_block = False
+        if tag == 'p':
+            self.in_p_block = False
+
+    def handle_data(self, data):
+        if self.in_p_block:
+            self.remaining = data
+
+    def result(self):
+        return self.rewards
+
+# Generate the URL
+url = sys.argv[1].split('?', 1)[0]  # drop the stuff after the ?
+url += '/pledge/new' # we want the pledge-editing page
+pledge = float(sys.argv[2])
+
+status = None
+
+while True:
+    ks = KickstarterHTMLParser()
+    rewards = ks.process(url)
+
+    s = rewards[pledge]
+    status = status or s[0]     # Initialize 'status' once
+
+    if status != s[0]:
+        print 'Status changed!'
+        webbrowser.open_new_tab(url)
+        sleep(10)   # Give the web browser time to open
+        break
+
+    print s[1]
+
+    time.sleep(60)
