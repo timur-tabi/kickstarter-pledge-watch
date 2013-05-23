@@ -45,8 +45,8 @@ statuses = ['reward', 'reward shipping', 'disabled reward',
 # So we need to scan the HTML looking for <li> tags with the proper class,
 # (the class is the status of that pledge level), and then remember that
 # status as we parse inside the <li> block.  The <input> tag contains a title
-# with the pledge amount.  We return a dictionary that includes the pledge
-# level and its status.
+# with the pledge amount.  We return a list of tuples that include the pledge
+# level, its status, and the number of remaining slots
 #
 # The 'rewards' dictionary uses the reward value as a key, and
 # (status, remaining) as the value.
@@ -55,7 +55,7 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
         HTMLParser.HTMLParser.__init__(self)
         self.in_li_block = False    # True == we're inside an <li class='...'> block
         self.in_p_block = False     # True == we're inside a <p class='remaining'> block
-        self.rewards = {}
+        self.rewards = []
         self.remaining = None
 
     def process(self, url) :
@@ -90,7 +90,7 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
     def handle_endtag(self, tag):
         if tag == 'li':
             if self.in_li_block:
-                self.rewards[self.value] = (self.status, self.remaining)
+                self.rewards.append((self.value, self.status, self.remaining))
                 self.in_li_block = False
         if tag == 'p':
             self.in_p_block = False
@@ -113,15 +113,15 @@ ks = KickstarterHTMLParser()
 while True:
     rewards = ks.process(url)
 
-    s = rewards[pledge]
-    status = status or s[0]     # Initialize 'status' once
+    s = next(r for r in rewards if r[0] == pledge)
+    status = status or s[1]     # Initialize 'status' once
 
-    if status != s[0]:
+    if status != s[1]:
         print 'Status changed!'
         webbrowser.open_new_tab(url)
         time.sleep(10)   # Give the web browser time to open
         break
 
-    print s[1]
+    print s[2]
 
     time.sleep(60)
