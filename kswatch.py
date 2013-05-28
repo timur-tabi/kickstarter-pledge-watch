@@ -116,10 +116,31 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
     def result(self):
         return self.rewards
 
+def pledge_menu(rewards):
+    import re
+
+    count = len(rewards)
+
+    if count == 1:
+        return rewards[0]
+
+    for i in xrange(count):
+        print '%u. $%u %s' % (i + 1, rewards[i][0], rewards[i][4][:70])
+
+    while True:
+        try:
+            ans = input('\nSelect a pledge level: ')
+            return rewards[ans - 1]
+        except (IndexError, NameError, SyntaxError):
+            continue
+
 # Generate the URL
 url = sys.argv[1].split('?', 1)[0]  # drop the stuff after the ?
 url += '/pledge/new' # we want the pledge-editing page
-pledge = float(sys.argv[2])
+pledge = None
+id = None
+if len(sys.argv) > 2:
+    pledge = float(sys.argv[2])
 
 status = None
 ks = KickstarterHTMLParser()
@@ -127,8 +148,21 @@ ks = KickstarterHTMLParser()
 while True:
     rewards = ks.process(url)
 
-    s = next(r for r in rewards if r[0] == pledge)
-    status = status or s[1]     # Initialize 'status' once
+    if not rewards:
+        print 'No limited rewards for this Kickstarter'
+        sys.exit(0)
+
+    if id:
+        s = next(r for r in rewards if r[3] == id)
+    else:
+        if pledge:
+            s = next(r for r in rewards if r[0] == pledge)
+        else:
+            # If a pledge amount was not specified on the command-line, then prompt
+            # the user with a menu
+            s = pledge_menu(rewards)
+        id = s[3]
+        status = s[1]
 
     if status != s[1]:
         print 'Status changed!'
