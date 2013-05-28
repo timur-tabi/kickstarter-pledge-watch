@@ -54,9 +54,9 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
     def __init__(self):
         HTMLParser.HTMLParser.__init__(self)
         self.in_li_block = False    # True == we're inside an <li class='...'> block
-        self.in_p_block = False     # True == we're inside a <p class='remaining'> block
+        self.in_remaining_block = False # True == we're inside a <p class="remaining"> block
+        self.in_desc_block = False # True == we're inside a <p class="description short"> block
         self.rewards = []
-        self.remaining = None
 
     def process(self, url) :
         f = urllib2.urlopen(url)
@@ -77,27 +77,41 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
         if self.in_li_block and tag == 'input':
             # Convert the value into a float
             self.value = float(attrs['title'][1:].replace(',', ''))
+            self.ident = attrs['id']
 
-        if self.in_li_block and tag == 'p' and attrs['class'] == 'remaining':
-            self.in_p_block = True
-            self.remaining = None
+        if self.in_li_block and tag == 'p':
+            if attrs['class'] == 'remaining':
+                self.in_remaining_block = True
+            if attrs['class'] == 'description full':
+                self.in_desc_block = True
 
+        # We only care about certain kinds of reward levels -- those that
+        # might be limited.
         if tag == 'li' and attrs['class'] in statuses:
             self.in_li_block = True
             # Remember the status of this <li> block
             self.status = attrs['class']
+            self.remaining = ''
+            self.description = ''
 
     def handle_endtag(self, tag):
         if tag == 'li':
-            if self.in_li_block:
-                self.rewards.append((self.value, self.status, self.remaining))
-                self.in_li_block = False
+            if self.in_li_block and self.remaining:
+                self.rewards.append((self.value,
+                    self.status,
+                    self.remaining,
+                    self.ident,
+                    ' '.join(self.description.split())))
+            self.in_li_block = False
         if tag == 'p':
-            self.in_p_block = False
+            self.in_remaining_block = False
+            self.in_desc_block = False
 
     def handle_data(self, data):
-        if self.in_p_block:
-            self.remaining = data
+        if self.in_remaining_block:
+            self.remaining += data
+        if self.in_desc_block:
+            self.description += self.unescape(data)
 
     def result(self):
         return self.rewards
