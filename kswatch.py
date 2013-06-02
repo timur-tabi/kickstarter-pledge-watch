@@ -129,20 +129,23 @@ def pledge_menu(rewards):
 
     while True:
         try:
-            ans = input('\nSelect a pledge level: ')
-            return rewards[ans - 1]
+            ans = raw_input('\nSelect pledge levels: ')
+            numbers = map(int, ans.split())
+            return [rewards[i - 1] for i in numbers]
         except (IndexError, NameError, SyntaxError):
             continue
 
 # Generate the URL
 url = sys.argv[1].split('?', 1)[0]  # drop the stuff after the ?
 url += '/pledge/new' # we want the pledge-editing page
-pledge = None
-id = None
+pledges = None   # The pledge amounts on the command line
+ids = None       # A list of IDs of the pledge levels
+selected = None  # A list of selected pledge levels
+rewards = None   # A list of valid reward levels
 if len(sys.argv) > 2:
-    pledge = float(sys.argv[2])
+    pledges = map(float, sys.argv[2:])
 
-status = None
+stats = None   # A list of the initial statuses of the selected pledge level
 ks = KickstarterHTMLParser()
 
 while True:
@@ -152,24 +155,26 @@ while True:
         print 'No limited rewards for this Kickstarter'
         sys.exit(0)
 
-    if id:
-        s = next(r for r in rewards if r[3] == id)
+    if ids:
+        selected = [r for r in rewards if r[3] in ids]
     else:
-        if pledge:
-            s = next(r for r in rewards if r[0] == pledge)
+        if pledges:
+            selected = [r for r in rewards if r[0] in pledges]
         else:
             # If a pledge amount was not specified on the command-line, then prompt
             # the user with a menu
-            s = pledge_menu(rewards)
-        id = s[3]
-        status = s[1]
+            selected = pledge_menu(rewards)
 
-    if status != s[1]:
-        print 'Status changed!'
-        webbrowser.open_new_tab(url)
-        time.sleep(10)   # Give the web browser time to open
-        break
+        ids = [s[3] for s in selected]
+        stats = [s[1] for s in selected]
 
-    print s[2]
+    for stat, s in zip(stats, selected):
+        if stat != s[1]:
+            print 'Status changed!'
+            webbrowser.open_new_tab(url)
+            time.sleep(10)   # Give the web browser time to open
+            break
+
+    print [str(s[2]) for s in selected]
 
     time.sleep(60)
