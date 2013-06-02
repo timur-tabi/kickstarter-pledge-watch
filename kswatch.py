@@ -56,12 +56,12 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
         self.in_li_block = False    # True == we're inside an <li class='...'> block
         self.in_remaining_block = False # True == we're inside a <p class="remaining"> block
         self.in_desc_block = False # True == we're inside a <p class="description short"> block
-        self.rewards = []
 
     def process(self, url) :
         f = urllib2.urlopen(url)
         html = unicode(f.read(), 'utf-8')
         f.close()
+        self.rewards = []
         self.feed(html)   # feed() starts the HTMLParser parsing
         return self.rewards
 
