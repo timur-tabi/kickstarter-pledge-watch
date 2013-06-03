@@ -168,12 +168,15 @@ while True:
         ids = [s[3] for s in selected]
         stats = [s[1] for s in selected]
 
-    for stat, s in zip(stats, selected):
+    for stat, s, id in zip(stats, selected, ids):
         if stat != s[1]:
             print 'Status changed!'
             webbrowser.open_new_tab(url)
-            time.sleep(10)   # Give the web browser time to open
-            sys.exit(0)
+            ids = [x for x in ids if x != id]   # Remove the pledge we just found
+            if not ids:     # If there are no more pledges to check, then exit
+                time.sleep(10)   # Give the web browser time to open
+                sys.exit(0)
+            break   # Otherwise, keep going
 
     print [str(s[2]) for s in selected]
 
