@@ -75,8 +75,10 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
             return
 
         if self.in_li_block and tag == 'input':
+            # remove preceding currency sign and optional succeeding currency code
+            amount = attrs['title'].split()[0][1:]
             # Convert the value into a float
-            self.value = float(attrs['title'][1:].replace(',', ''))
+            self.value = float(amount.replace(',', ''))
             self.ident = attrs['id']
 
         if self.in_li_block and tag == 'p':
