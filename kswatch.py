@@ -74,11 +74,14 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
         if not 'class' in attrs:
             return
 
+        # Extract the pledge amount (the cost)
         if self.in_li_block and tag == 'input':
-            # remove preceding currency sign and optional succeeding currency code
-            amount = attrs['title'].split()[0][1:]
+            # remove everything except the actual number
+            amount = attrs['title'].encode('ascii','ignore')
+            nondigits = amount.translate(None, '0123456789.')
+            amount = amount.translate(None, nondigits)
             # Convert the value into a float
-            self.value = float(amount.replace(',', ''))
+            self.value = float(amount)
             self.ident = attrs['id']
 
         if self.in_li_block and tag == 'p':
