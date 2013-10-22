@@ -58,7 +58,20 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
         self.in_desc_block = False # True == we're inside a <p class="description short"> block
 
     def process(self, url) :
-        f = urllib2.urlopen(url)
+        while True:
+            try:
+                f = urllib2.urlopen(url)
+                break
+            except urllib2.HTTPError as e:
+                print 'HTTP Error', e
+            except urllib2.URLError as e:
+                print 'URL Error', e
+            except Exception as e:
+                print 'General Error', e
+
+            print 'Retrying in one minute'
+            time.sleep(60)
+
         html = unicode(f.read(), 'utf-8')
         f.close()
         self.rewards = []
