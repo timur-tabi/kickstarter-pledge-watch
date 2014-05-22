@@ -196,6 +196,6 @@ while True:
                 sys.exit(0)
             break   # Otherwise, keep going
 
-    print [str(s[2]) for s in selected]
+    print time.strftime('%B %d, %Y %I:%M %p'), [str(s[2]) for s in selected]
 
     time.sleep(60)
