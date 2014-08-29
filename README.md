@@ -2,7 +2,30 @@ kickstarter-pledge-watch
 ========================
 
 This Python program notifies you when a locked Kickstarter pledge level
-becomes available.
+becomes available.  When the pledge is available, the program opens a
+web browser window to the pledge, allowing you to enter the pledge
+amount and select the new pledge.
+
+kswatch.py must be run from the command line.  Since this is a Python
+program, you must have Python installed.
+
+Usage: kswatch.py project-url [cost-of-pledge]
+
+Where project-url is the URL of the Kickstarter project, and cost-of-pledge
+is the cost of the target pledge. If cost-of-pledge is not specified, then
+a menu of pledges is shown.  Specify cost-of-pledge only if that amount
+is unique among pledges.  Only restricted pledges are supported.
+
+Example:
+
+$ ./kswatch.py https://www.kickstarter.com/projects/1300298569/under-the-dog
+1. $20 RECRUIT ============================== [Early Backer $25] HD Digital D
+2. $30 SENIOR ATTENDANT ============================== [Early Backer $35] Dig
+3. $40 SENIOR ANALYST ============================== [Early Backer $45] Digit
+4. $50 SENIOR OPERATIVE ============================== [Early Backer $55] Dig
+
+Select pledge levels:
+
 
 I believe that this script does not violate the Kickstarter terms of service
 (TOS):

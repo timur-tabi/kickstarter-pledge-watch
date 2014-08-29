@@ -153,6 +153,14 @@ def pledge_menu(rewards):
         except (IndexError, NameError, SyntaxError):
             continue
 
+if len(sys.argv) < 2:
+    print 'Usage: %s project-url [cost-of-pledge]' % os.path.basename(__file__)
+    print 'Where project-url is the URL of the Kickstarter project, and cost-of-pledge'
+    print 'is the cost of the target pledge. If cost-of-pledge is not specified, then'
+    print 'a menu of pledges is shown.  Specify cost-of-pledge only if that amount'
+    print 'is unique among pledges.  Only restricted pledges are supported.'
+    sys.exit(0)
+
 # Generate the URL
 url = sys.argv[1].split('?', 1)[0]  # drop the stuff after the ?
 url += '/pledge/new' # we want the pledge-editing page
