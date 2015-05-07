@@ -142,7 +142,7 @@ def pledge_menu(rewards):
     count = len(rewards)
 
     if count == 1:
-        return rewards[0]
+        return [rewards[0]]
 
     for i in xrange(count):
         print '%u. $%u %s' % (i + 1, rewards[i][0], rewards[i][4][:70])
