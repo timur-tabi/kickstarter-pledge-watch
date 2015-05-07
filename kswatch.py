@@ -30,8 +30,8 @@ import urllib2
 import HTMLParser
 import webbrowser
 
-statuses = ['reward', 'reward shipping', 'disabled reward',
-           'disabled reward shipping', 'last reward shipping']
+statuses = ['disabled relative reward', 'disabled relative reward shipping',
+            'disabled last relative reward shipping']
 
 # Parse the pledge HTML page
 #
@@ -83,6 +83,10 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
 
         attrs = dict(attributes)
 
+        if self.in_li_block and tag == 'p':
+            if not 'class' in attrs:
+                self.in_desc_block = True
+
         # It turns out that we only care about tags that have a 'class' attribute
         if not 'class' in attrs:
             return
@@ -100,8 +104,6 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
         if self.in_li_block and tag == 'p':
             if attrs['class'] == 'remaining':
                 self.in_remaining_block = True
-            if attrs['class'] == 'description full':
-                self.in_desc_block = True
 
         # We only care about certain kinds of reward levels -- those that
         # might be limited.
@@ -178,7 +180,7 @@ while True:
     rewards = ks.process(url)
 
     if not rewards:
-        print 'No limited rewards for this Kickstarter'
+        print 'No unavailable limited rewards for this Kickstarter'
         sys.exit(0)
 
     if ids:
