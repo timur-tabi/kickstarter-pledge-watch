@@ -30,9 +30,6 @@ import urllib2
 import HTMLParser
 import webbrowser
 
-statuses = ['disabled relative reward', 'disabled relative reward shipping',
-            'disabled last relative reward shipping']
-
 # Parse the pledge HTML page
 #
 # It looks like this:
@@ -107,7 +104,7 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
 
         # We only care about certain kinds of reward levels -- those that
         # might be limited.
-        if tag == 'li' and attrs['class'] in statuses:
+        if tag == 'li' and all(x in attrs['class'] for x in ['disabled', 'reward']):
             self.in_li_block = True
             # Remember the status of this <li> block
             self.status = attrs['class']
