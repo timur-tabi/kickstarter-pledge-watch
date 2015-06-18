@@ -117,7 +117,7 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
 
     def handle_data(self, data):
         if self.in_desc_block:
-            self.description += self.unescape(data)
+            self.description += self.unescape(data).encode('ascii','ignore')
 
     def result(self):
         return self.rewards
