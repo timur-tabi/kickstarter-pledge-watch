@@ -43,7 +43,7 @@ import webbrowser
 # (the class is the status of that pledge level), and then remember that
 # status as we parse inside the <li> block.  The <input> tag contains a title
 # with the pledge amount.  We return a list of tuples that include the pledge
-# level, its status, and the number of remaining slots
+# level, the reward ID, and a description
 #
 # The 'rewards' dictionary uses the reward value as a key, and
 # (status, remaining) as the value.
@@ -51,7 +51,6 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
     def __init__(self):
         HTMLParser.HTMLParser.__init__(self)
         self.in_li_block = False    # True == we're inside an <li class='...'> block
-        self.in_remaining_block = False # True == we're inside a <p class="remaining"> block
         self.in_desc_block = False # True == we're inside a <p class="description short"> block
 
     def process(self, url) :
@@ -80,6 +79,8 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
 
         attrs = dict(attributes)
 
+        # The pledge description is in a 'p' block that has no 'class'
+        # attribute.
         if self.in_li_block and tag == 'p':
             if not 'class' in attrs:
                 self.in_desc_block = True
@@ -89,44 +90,32 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
             return
 
         # Extract the pledge amount (the cost)
-        if self.in_li_block and tag == 'input':
+        if self.in_li_block and tag == 'input' and 'pledge__radio' in attrs['class']:
             # remove everything except the actual number
             amount = attrs['title'].encode('ascii','ignore')
             nondigits = amount.translate(None, '0123456789.')
             amount = amount.translate(None, nondigits)
             # Convert the value into a float
             self.value = float(amount)
-            self.ident = attrs['id']
-
-        if self.in_li_block and tag == 'p':
-            if attrs['class'] == 'remaining':
-                self.in_remaining_block = True
+            self.ident = attrs['id']    # Save the reward ID
 
         # We only care about certain kinds of reward levels -- those that
-        # might be limited.
-        if tag == 'li' and all(x in attrs['class'] for x in ['disabled', 'reward']):
+        # are limited.
+        if tag == 'li' and 'pledge--all-gone' in attrs['class']:
             self.in_li_block = True
-            # Remember the status of this <li> block
-            self.status = attrs['class']
-            self.remaining = ''
             self.description = ''
 
     def handle_endtag(self, tag):
         if tag == 'li':
-            if self.in_li_block and self.remaining:
+            if self.in_li_block:
                 self.rewards.append((self.value,
-                    self.status,
-                    self.remaining,
                     self.ident,
                     ' '.join(self.description.split())))
             self.in_li_block = False
         if tag == 'p':
-            self.in_remaining_block = False
             self.in_desc_block = False
 
     def handle_data(self, data):
-        if self.in_remaining_block:
-            self.remaining += data
         if self.in_desc_block:
             self.description += self.unescape(data)
 
@@ -138,11 +127,12 @@ def pledge_menu(rewards):
 
     count = len(rewards)
 
+    # If there is only one qualifying pledge level, then just select it
     if count == 1:
-        return [rewards[0]]
+        return rewards
 
     for i in xrange(count):
-        print '%u. $%u %s' % (i + 1, rewards[i][0], rewards[i][4][:70])
+        print '%u. $%u %s' % (i + 1, rewards[i][0], rewards[i][2][:70])
 
     while True:
         try:
@@ -170,39 +160,38 @@ rewards = None   # A list of valid reward levels
 if len(sys.argv) > 2:
     pledges = map(float, sys.argv[2:])
 
-stats = None   # A list of the initial statuses of the selected pledge level
 ks = KickstarterHTMLParser()
 
+rewards = ks.process(url)
+if not rewards:
+    print 'No unavailable limited rewards for this Kickstarter'
+    sys.exit(0)
+
+# Select the pledge level(s)
+if pledges:
+    selected = [r for r in rewards if r[0] in pledges]
+else:
+    # If a pledge amount was not specified on the command-line, then prompt
+    # the user with a menu
+    selected = pledge_menu(rewards)
+
+if not selected:
+    print 'No reward selected.'
+    sys.exit(0)
+
 while True:
-    rewards = ks.process(url)
-
-    if not rewards:
-        print 'No unavailable limited rewards for this Kickstarter'
-        sys.exit(0)
-
-    if ids:
-        selected = [r for r in rewards if r[3] in ids]
-    else:
-        if pledges:
-            selected = [r for r in rewards if r[0] in pledges]
-        else:
-            # If a pledge amount was not specified on the command-line, then prompt
-            # the user with a menu
-            selected = pledge_menu(rewards)
-
-        ids = [s[3] for s in selected]
-        stats = [s[1] for s in selected]
-
-    for stat, s, id in zip(stats, selected, ids):
-        if stat != s[1]:
-            print 'Status changed!'
+    for s in selected:
+        if not s[1] in [r[1] for r in rewards]:
+            print '%s - Reward available!' % time.strftime('%B %d, %Y %I:%M %p')
+            print s[2]
             webbrowser.open_new_tab(url)
-            ids = [x for x in ids if x != id]   # Remove the pledge we just found
-            if not ids:     # If there are no more pledges to check, then exit
+            selected = [x for x in selected if x != s]   # Remove the pledge we just found
+            if not selected:     # If there are no more pledges to check, then exit
                 time.sleep(10)   # Give the web browser time to open
                 sys.exit(0)
-            break   # Otherwise, keep going
-
-    print time.strftime('%B %d, %Y %I:%M %p'), [str(s[2]) for s in selected]
-
+            break
     time.sleep(60)
+
+    rewards = ks.process(url)
+
+
