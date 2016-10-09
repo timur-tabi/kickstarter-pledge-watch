@@ -79,15 +79,14 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
 
         attrs = dict(attributes)
 
-        # The pledge description is in a 'p' block that has no 'class'
-        # attribute.
-        if self.in_li_block and tag == 'p':
-            if not 'class' in attrs:
-                self.in_desc_block = True
-
         # It turns out that we only care about tags that have a 'class' attribute
         if not 'class' in attrs:
             return
+
+        # The pledge description is in a 'h3' block that has a 'class'
+        # attribute of 'pledge__title'.
+        if self.in_li_block and 'pledge__title' in attrs['class']:
+                self.in_desc_block = True
 
         # Extract the pledge amount (the cost)
         if self.in_li_block and tag == 'input' and 'pledge__radio' in attrs['class']:
@@ -112,7 +111,7 @@ class KickstarterHTMLParser(HTMLParser.HTMLParser):
                     self.ident,
                     ' '.join(self.description.split())))
             self.in_li_block = False
-        if tag == 'p':
+        if tag == 'h3':
             self.in_desc_block = False
 
     def handle_data(self, data):
