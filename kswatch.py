@@ -128,6 +128,8 @@ def pledge_menu(rewards):
 
     # If there is only one qualifying pledge level, then just select it
     if count == 1:
+        print 'Automatically selecting the only limited award available:'
+        print '$%u %s' % (rewards[0][0], rewards[0][2][:74])
         return rewards
 
     for i in xrange(count):
