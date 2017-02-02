@@ -29,6 +29,7 @@ import time
 import urllib2
 import HTMLParser
 import webbrowser
+from optparse import OptionParser
 
 # Parse the pledge HTML page
 #
@@ -143,23 +144,34 @@ def pledge_menu(rewards):
         except (IndexError, NameError, SyntaxError):
             continue
 
-if len(sys.argv) < 2:
-    print 'Usage: %s project-url [cost-of-pledge]' % os.path.basename(__file__)
-    print 'Where project-url is the URL of the Kickstarter project, and cost-of-pledge'
-    print 'is the cost of the target pledge. If cost-of-pledge is not specified, then'
-    print 'a menu of pledges is shown.  Specify cost-of-pledge only if that amount'
-    print 'is unique among pledges.  Only restricted pledges are supported.'
+parser = OptionParser(usage="usage: %prog [options] project-url [cost-of-pledge ...]\n"
+                      "project-url is the URL of the Kickstarter project\n"
+                      "cost-of-pledge is the cost of the target pledge.\n"
+                      "If cost-of-pledge is not specified, then a menu of pledges is shown.\n"
+                      "Specify cost-of-pledge only if that amount is unique among pledges.\n"
+                      "Only restricted pledges are supported.")
+parser.add_option("-d", dest="delay",
+    help="delay, in minutes, between each check (default is 1)",
+    type="int", default=1)
+parser.add_option("-v", dest="verbose",
+    help="print a message before each delay",
+    action="store_true", default=False)
+
+(options, args) = parser.parse_args()
+
+if len(args) < 1:
+    parser.error('no URL specified')
     sys.exit(0)
 
 # Generate the URL
-url = sys.argv[1].split('?', 1)[0]  # drop the stuff after the ?
+url = args[0].split('?', 1)[0]  # drop the stuff after the ?
 url += '/pledge/new' # we want the pledge-editing page
 pledges = None   # The pledge amounts on the command line
 ids = None       # A list of IDs of the pledge levels
 selected = None  # A list of selected pledge levels
 rewards = None   # A list of valid reward levels
 if len(sys.argv) > 2:
-    pledges = map(float, sys.argv[2:])
+    pledges = map(float, args[1:])
 
 ks = KickstarterHTMLParser()
 
@@ -191,7 +203,9 @@ while True:
                 time.sleep(10)   # Give the web browser time to open
                 sys.exit(0)
             break
-    time.sleep(60)
+    if options.verbose:
+        print 'Waiting %u minutes ...' % options.delay
+    time.sleep(60 * options.delay)
 
     rewards = ks.process(url)
 
